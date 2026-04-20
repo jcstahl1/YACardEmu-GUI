@@ -24,7 +24,7 @@ This tool provides an interface for working with `card.bin` files, assigning cle
 ## Download
 
 Download the latest release here:
-➡️ https://github.com/YOUR_USERNAME/YOUR_REPO/releases/latest
+➡️ https://github.com/jcstahl1/YACardEmu-GUI/releases/latest
 
 ---
 
@@ -42,7 +42,7 @@ Download the latest release here:
 
 Example:
 
-```text id="layout1"
+```text
 YACardEmu/
 │
 ├── YACardEmu.exe
@@ -56,15 +56,27 @@ YACardEmu/
 
 3. Run:
 
-```text id="run1"
+```text
 YACardEmu_Gui.exe
 ```
 
 ---
 
+## Note About YACardEmu Window
+
+When launched through this GUI, **YACardEmu runs in the background with no visible window**.
+
+* This is intentional behavior
+* You will **not** see the usual command window
+* The GUI communicates with YACardEmu through its local API
+
+As long as the GUI is running, YACardEmu is running in the background.
+
+---
+
 ## Running from Source (Optional)
 
-```text id="run2"
+```text
 YACardEmu_Gui.pyw
 ```
 
@@ -97,7 +109,7 @@ Requires Python 3.x.
 
 Place clean PNG templates here:
 
-```text id="templates"
+```text
 /data/card_images/
 ```
 
@@ -109,7 +121,7 @@ Place clean PNG templates here:
 
 ## Data Files
 
-```text id="datafiles"
+```text
 /data
   yacardemu_gui.ini       # GUI settings
   card_image_links.json   # Card ↔ template mappings
@@ -140,19 +152,19 @@ Use **PyInstaller**
 
 ### Install
 
-```bash id="build1"
+```bash
 pip install pyinstaller
 ```
 
 ### Build
 
-```bash id="build2"
+```bash
 pyinstaller --noconsole --onefile YACardEmu_Gui.pyw
 ```
 
 ### Output
 
-```text id="build3"
+```text
 /dist/YACardEmu_Gui.exe
 ```
 
@@ -199,7 +211,7 @@ pyinstaller --noconsole --onefile YACardEmu_Gui.pyw
 
 * Add `.png` files to:
 
-```
+```text
 /data/card_images/
 ```
 
