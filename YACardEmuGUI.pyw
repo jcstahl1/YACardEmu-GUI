@@ -609,6 +609,8 @@ class App:
         self.preview_hold_card_name: Optional[str] = None
         self.preview_hold_job: Optional[str] = None
         self.preview_hold_ignored_change = False
+        self.preview_override_image = None
+        self.preview_override_card_name: Optional[str] = None
         self.binding_var = tk.StringVar(value="")
         self.binding_listen_var = tk.StringVar(value="")
         self.binding_dialog: Optional[tk.Toplevel] = None
@@ -1096,18 +1098,30 @@ class App:
             return False
         if str(binding.get("control_type", "")) != str(event_info.get("control_type", "")):
             return False
-        if int(binding.get("index", -1)) != int(event_info.get("index", -2)):
-            return False
 
-        if str(binding.get("control_type")) == "hat":
+        binding_index = binding.get("index", -1)
+        event_index = event_info.get("index", -2)
+        if source == "xinput":
+            if str(binding_index) != str(event_index):
+                return False
+        else:
+            if int(binding_index) != int(event_index):
+                return False
+
+        control_type = str(binding.get("control_type"))
+        if control_type == "hat":
             return tuple(binding.get("value", (0, 0))) == tuple(event_info.get("value", (9, 9)))
-        if str(binding.get("control_type")) == "axis":
+        if control_type == "axis":
             return str(binding.get("direction", "")) == str(event_info.get("direction", ""))
         return True
 
     def trigger_insert_from_binding(self) -> None:
-        if self.insert_in_progress or not self.cards:
+        if self.insert_in_progress:
             return
+        if not self.cards:
+            self.append_status_line("Insert trigger ignored: no cards loaded.")
+            return
+        self.append_status_line("Insert trigger received from bound input.")
         self.insert_current_card()
 
     def can_fire_bound_trigger(self) -> bool:
@@ -1360,10 +1374,43 @@ class App:
 
     def ensure_template_dir(self) -> None:
         self.template_dir.mkdir(parents=True, exist_ok=True)
+        self.preview_cache_dir.mkdir(parents=True, exist_ok=True)
 
     def get_template_names(self) -> List[str]:
         self.ensure_template_dir()
         return [p.name for p in sorted(self.template_dir.glob("*.png"))]
+
+
+    def _preview_cache_key(self, card_name: str, signature: Optional[str]) -> Optional[str]:
+        if not signature:
+            return None
+        import hashlib
+        raw = f"{card_name}|{signature}".encode("utf-8", errors="ignore")
+        return hashlib.sha1(raw).hexdigest()
+
+    def save_preview_cache(self, card_name: str, img: Image.Image, signature: Optional[str]) -> None:
+        key = self._preview_cache_key(card_name, signature)
+        if not key:
+            return
+        try:
+            self.ensure_template_dir()
+            cache_path = self.preview_cache_dir / f"{key}.png"
+            img.save(cache_path, format="PNG")
+        except Exception:
+            pass
+
+    def load_cached_preview_for_current_signature(self, card: CardEntry, signature: Optional[str]) -> Optional[Image.Image]:
+        key = self._preview_cache_key(card.name, signature)
+        if not key:
+            return None
+        try:
+            cache_path = self.preview_cache_dir / f"{key}.png"
+            if not cache_path.exists():
+                return None
+            with Image.open(cache_path) as img:
+                return img.copy()
+        except Exception:
+            return None
 
     def open_manager(self) -> None:
         self.ensure_template_dir()
@@ -1576,6 +1623,7 @@ class App:
         self.preview_hold_active = False
         self.preview_hold_card_name = None
         self.preview_hold_ignored_change = False
+        self.clear_preview_override()
         if self.preview_hold_job:
             try:
                 self.root.after_cancel(self.preview_hold_job)
@@ -1668,6 +1716,42 @@ class App:
         except Exception:
             pass
 
+    def capture_preview_override(self, card_name: str) -> None:
+        self.preview_override_image = None
+        self.preview_override_card_name = None
+
+        card = self.get_card_entry(card_name)
+        if not card or not card.png_path or not card.png_path.exists():
+            return
+
+        try:
+            current_signature = self.get_card_signature(card)
+            with Image.open(card.png_path) as img:
+                self.preview_override_image = img.copy()
+                self.preview_override_card_name = card_name
+                self.save_preview_cache(card_name, self.preview_override_image, current_signature)
+        except Exception:
+            self.preview_override_image = None
+            self.preview_override_card_name = None
+
+    def clear_preview_override(self) -> None:
+        self.preview_override_image = None
+        self.preview_override_card_name = None
+
+    def display_pil_image(self, img: Image.Image) -> None:
+        preview = img.copy()
+        preview.thumbnail((PREVIEW_MAX_W, PREVIEW_MAX_H), Image.LANCZOS)
+        self.current_photo = ImageTk.PhotoImage(preview)
+
+        frame_w = max(self.current_photo.width() + 12, 120)
+        frame_h = max(self.current_photo.height() + 12, 120)
+        self.image_frame.configure(width=frame_w, height=frame_h)
+
+        self.image_label.configure(image=self.current_photo, text="")
+        self.image_label.place(relx=0.5, rely=0.5, anchor="center")
+
+        self._fit_window_to_content(frame_w, frame_h)
+
     def poll_for_new_card_bin(self) -> None:
         try:
             new_card, signature = self.get_latest_unhandled_new_card()
@@ -1704,25 +1788,21 @@ class App:
         self.pending_card_refresh_signature = self.current_card_signature
 
         try:
-            if card.png_path and card.png_path.exists():
-                img = Image.open(card.png_path)
-                img.thumbnail((PREVIEW_MAX_W, PREVIEW_MAX_H), Image.LANCZOS)
-                self.current_photo = ImageTk.PhotoImage(img)
-
-                frame_w = max(self.current_photo.width() + 12, 120)
-                frame_h = max(self.current_photo.height() + 12, 120)
-                self.image_frame.configure(width=frame_w, height=frame_h)
-
-                self.image_label.configure(image=self.current_photo, text="")
-                self.image_label.place(relx=0.5, rely=0.5, anchor="center")
-
-                self._fit_window_to_content(frame_w, frame_h)
+            if self.preview_hold_active and self.preview_override_card_name == card.name and self.preview_override_image is not None:
+                self.display_pil_image(self.preview_override_image)
             else:
-                self.current_photo = None
-                self.image_frame.configure(width=PREVIEW_MAX_W + 12, height=PREVIEW_MAX_H + 12)
-                self.image_label.configure(image="", text=f"No PNG preview yet for:\n{card.name}")
-                self.image_label.place(relx=0.5, rely=0.5, anchor="center")
-                self._fit_window_to_content(PREVIEW_MAX_W + 12, PREVIEW_MAX_H + 12)
+                cached_preview = self.load_cached_preview_for_current_signature(card, self.current_card_signature)
+                if cached_preview is not None:
+                    self.display_pil_image(cached_preview)
+                elif card.png_path and card.png_path.exists():
+                    with Image.open(card.png_path) as img:
+                        self.display_pil_image(img)
+                else:
+                    self.current_photo = None
+                    self.image_frame.configure(width=PREVIEW_MAX_W + 12, height=PREVIEW_MAX_H + 12)
+                    self.image_label.configure(image="", text=f"No PNG preview yet for:\n{card.name}")
+                    self.image_label.place(relx=0.5, rely=0.5, anchor="center")
+                    self._fit_window_to_content(PREVIEW_MAX_W + 12, PREVIEW_MAX_H + 12)
 
         except Exception as exc:
             self.current_photo = None
@@ -1865,20 +1945,21 @@ class App:
             messagebox.showerror("No card", "No card is selected.")
             return
 
+        self.capture_preview_override(selected)
+        self.root.after(0, lambda: self.begin_preview_hold(selected))
+
+        reset_ok, reset_msg = self.restore_template_to_card(selected)
+        if not reset_ok:
+            self.clear_preview_override()
+            self.end_preview_hold(cancel_only=True)
+            messagebox.showerror("Reset failed", reset_msg)
+            return
+
         self.start_reading_overlay()
         self.insert_in_progress = True
 
         def worker():
             try:
-                reset_ok, reset_msg = self.restore_template_to_card(selected)
-                if not reset_ok and selected in self.card_links:
-                    self.root.after(0, lambda: self.append_status_line(f"Template reset failed: {reset_msg}"))
-                    self.root.after(0, lambda: messagebox.showerror("Template reset failed", reset_msg))
-                    return
-
-                if reset_ok:
-                    self.root.after(0, lambda: self.begin_preview_hold(selected))
-
                 change_payload = {
                     "redirect": "",
                     "cardname": selected,
