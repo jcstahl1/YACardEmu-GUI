@@ -161,13 +161,13 @@ pip install pyinstaller
 ### Build
 
 ```bash
-pyinstaller --noconsole --onefile YACardEmu_Gui.pyw
+pyinstaller --noconsole --onefile YACardEmuGUI.pyw
 ```
 
 ### Output
 
 ```text
-/dist/YACardEmu_Gui.exe
+/dist/YACardEmuGUI.exe
 ```
 
 ### Notes
