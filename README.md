@@ -92,6 +92,7 @@ Requires Python 3.x.
 * Detects new `card.bin` files
 * Prompts for rename + template assignment
 * Handles card insertion via API
+* Customizable in app keybind for card insert (d-input or x-input)
 
 ---
 
