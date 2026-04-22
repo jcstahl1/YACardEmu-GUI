@@ -231,18 +231,6 @@ pyinstaller --noconsole --onefile YACardEmu_Gui.pyw
 
 ---
 
-## Changelog
-
-### v1.0.0
-
-* Initial release
-* Card detection and renaming
-* Template system
-* Card insertion via API
-* Card manager window
-
----
-
 ## License
 
 This project is licensed under the GNU General Public License v2.0 (GPL-2.0).
