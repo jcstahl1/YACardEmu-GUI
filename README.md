@@ -47,7 +47,7 @@ YACardEmu/
 │
 ├── YACardEmu.exe
 ├── config.ini
-├── YACardEmu_Gui.exe
+├── YACardEmuGUI.exe
 ├── data/
 │   ├── yacardemu_gui.ini
 │   ├── card_image_links.json
@@ -57,7 +57,7 @@ YACardEmu/
 3. Run:
 
 ```text
-YACardEmu_Gui.exe
+YACardEmuGUI.exe
 ```
 
 ---
@@ -77,7 +77,7 @@ As long as the GUI is running, YACardEmu is running in the background.
 ## Running from Source (Optional)
 
 ```text
-YACardEmu_Gui.pyw
+YACardEmuGUI.pyw
 ```
 
 Requires Python 3.x.
@@ -97,11 +97,10 @@ Requires Python 3.x.
 
 ## Screenshots
 
-*(Add screenshots here)*
-
+<img width="529" height="781" alt="image" src="https://github.com/user-attachments/assets/8addc6de-4500-4ceb-aa54-8d91c0c6b9b3" />
 * Main window
+<img width="986" height="657" alt="image" src="https://github.com/user-attachments/assets/335281ce-1705-4e8a-9a1f-e6c3b8dcf0c9" />
 * Template selection grid
-* Card manager window
 
 ---
 
@@ -114,8 +113,8 @@ Place clean PNG templates here:
 ```
 
 * Filenames can be anything
-* Used to overwrite card PNGs before insertion
-* Prevents text stacking from repeated saves
+* Used to overwrite card PNGs with new save info
+* Prevents overwrite from repeated saves
 
 ---
 
@@ -262,6 +261,8 @@ All credit for the core card emulation functionality belongs to the original aut
 
 This project is an independent GUI frontend.
 
+Support is always appreciated, but NEVER required!
+buymeacoffee.com/jc15904
 ---
 
 ## Disclaimer
