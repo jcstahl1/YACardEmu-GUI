@@ -37,8 +37,9 @@ Download the latest release here:
 
 ## Installation
 
-1. Download and extract the latest release
-2. Place the files inside your YACardEmu folder
+1. Download the latest exe from the release page
+2. Download the required font ttf from main repo
+3. Place the files inside your YACardEmu folder
 
 Example:
 
@@ -47,6 +48,7 @@ YACardEmu/
 │
 ├── YACardEmu.exe
 ├── config.ini
+├── kochi-gothic-subst.ttf
 ├── YACardEmuGUI.exe
 ├── data/
 │   ├── yacardemu_gui.ini
