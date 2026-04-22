@@ -262,7 +262,9 @@ All credit for the core card emulation functionality belongs to the original aut
 This project is an independent GUI frontend.
 
 Support is always appreciated, but NEVER required!
-buymeacoffee.com/jc15904
+
+https://buymeacoffee.com/jc15904
+
 ---
 
 ## Disclaimer
