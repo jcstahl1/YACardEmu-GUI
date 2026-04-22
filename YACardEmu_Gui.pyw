@@ -64,7 +64,7 @@ INSERT_RETRY_DELAY = 0.35
 NEW_CARD_POLL_MS = 1500
 SELECTED_CARD_POLL_MS = 1000
 PREVIEW_REFRESH_DEBOUNCE_MS = 400
-READING_OVERLAY_DURATION_MS = 4000
+READING_OVERLAY_DURATION_MS = 5000
 READING_OVERLAY_FLASH_MS = 350
 PREVIEW_HOLD_MAX_MS = 30000
 MAX_STATUS_LINES = 2
@@ -279,11 +279,7 @@ class AutoSetupDialog(tk.Toplevel):
         self._build_ui()
 
     def _apply_icon(self) -> None:
-        try:
-            if self.app.icon_path.exists():
-                self.iconbitmap(str(self.app.icon_path))
-        except Exception:
-            pass
+        self.app.apply_toplevel_icon(self)
 
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
@@ -371,11 +367,7 @@ class CardManagerWindow(tk.Toplevel):
         self.refresh_lists()
 
     def _apply_icon(self) -> None:
-        try:
-            if self.app.icon_path.exists():
-                self.iconbitmap(str(self.app.icon_path))
-        except Exception:
-            pass
+        self.app.apply_toplevel_icon(self)
 
     def _build_ui(self) -> None:
         self.columnconfigure(0, weight=1)
@@ -404,14 +396,11 @@ class CardManagerWindow(tk.Toplevel):
         middle = ttk.Frame(main, padding=(4, 0, 4, 0))
         middle.grid(row=0, column=1, sticky="ns")
 
-        ttk.Button(middle, text="Refresh", command=self.refresh_lists, width=18).grid(row=0, column=0, pady=(0, 8))
+        ttk.Button(middle, text="Refresh", command=self.refresh_lists, width=18).grid(row=0, column=0, pady=(0, 4))
         ttk.Button(middle, text="Rename Card", command=self.rename_card, width=18).grid(row=1, column=0, pady=4)
-        ttk.Button(middle, text="Link Template", command=self.link_template, width=18).grid(row=2, column=0, pady=4)
-        ttk.Button(middle, text="Unlink Template", command=self.unlink_template, width=18).grid(row=3, column=0, pady=4)
-        ttk.Button(middle, text="Reset PNG From Template", command=self.reset_png_from_template, width=18).grid(row=4, column=0, pady=4)
-        ttk.Button(middle, text="Auto-Fix card.bin", command=self.auto_fix_new_card, width=18).grid(row=5, column=0, pady=4)
-        ttk.Button(middle, text="Open Template Folder", command=self.open_template_folder, width=18).grid(
-            row=6, column=0, pady=(12, 4)
+        ttk.Button(middle, text="Link BIN/PNG", command=self.link_template, width=18).grid(row=2, column=0, pady=4)
+        ttk.Button(middle, text="Unlink BIN/PNG", command=self.unlink_template, width=18).grid(row=3, column=0, pady=4)
+        ttk.Button(middle, text="Open Image Folder", command=self.open_template_folder, width=18).grid(row=4, column=0, pady=(12, 4)
         )
         ttk.Button(middle, text="Close", command=self.destroy, width=18).grid(row=7, column=0, pady=(30, 0))
 
@@ -471,8 +460,7 @@ class CardManagerWindow(tk.Toplevel):
         dialog.transient(self)
         dialog.grab_set()
         try:
-            if self.app.icon_path.exists():
-                dialog.iconbitmap(str(self.app.icon_path))
+            self.app.apply_toplevel_icon(dialog)
         except Exception:
             pass
 
@@ -567,6 +555,8 @@ class App:
         self.exe_path = self.base_dir / EXE_NAME
         self.config_path = self.base_dir / CONFIG_NAME
         self.icon_path = self.resolve_data_path(ICON_NAME, prefer_data=False)
+        self.icon_photo: Optional[ImageTk.PhotoImage] = None
+        self.dialog_icon_photo: Optional[ImageTk.PhotoImage] = None
         self.links_path = self.resolve_data_path(LINKS_NAME, prefer_data=True)
         self.input_binding_path = self.resolve_data_path(INPUT_BINDING_NAME, prefer_data=True)
         self.window_state_path = self.resolve_data_path(WINDOW_STATE_NAME, prefer_data=True)
@@ -636,9 +626,35 @@ class App:
         return Path(__file__).resolve().parent
 
     def _apply_window_icon(self) -> None:
+        if not self.icon_path.exists():
+            return
+
         try:
-            if self.icon_path.exists():
-                self.root.iconbitmap(str(self.icon_path))
+            self.root.iconbitmap(str(self.icon_path))
+        except Exception:
+            pass
+
+        try:
+            icon_image = Image.open(self.icon_path)
+            self.icon_photo = ImageTk.PhotoImage(icon_image)
+            self.root.iconphoto(True, self.icon_photo)
+        except Exception:
+            pass
+
+    def apply_toplevel_icon(self, window: tk.Toplevel) -> None:
+        if not self.icon_path.exists():
+            return
+
+        try:
+            window.iconbitmap(str(self.icon_path))
+        except Exception:
+            pass
+
+        try:
+            if self.icon_photo is None:
+                icon_image = Image.open(self.icon_path)
+                self.icon_photo = ImageTk.PhotoImage(icon_image)
+            window.iconphoto(True, self.icon_photo)
         except Exception:
             pass
 
@@ -993,8 +1009,7 @@ class App:
         dialog.grab_set()
 
         try:
-            if self.icon_path.exists():
-                dialog.iconbitmap(str(self.icon_path))
+            self.apply_toplevel_icon(dialog)
         except Exception:
             pass
 
@@ -1870,15 +1885,6 @@ class App:
 
         def worker():
             try:
-                reset_ok, reset_msg = self.restore_template_to_card(selected)
-                if not reset_ok and selected in self.card_links:
-                    self.root.after(0, lambda: self.append_status_line(f"Template reset failed: {reset_msg}"))
-                    self.root.after(0, lambda: messagebox.showerror("Template reset failed", reset_msg))
-                    return
-
-                if reset_ok:
-                    self.root.after(0, lambda: self.begin_preview_hold(selected))
-
                 change_payload = {
                     "redirect": "",
                     "cardname": selected,
@@ -1916,10 +1922,12 @@ class App:
                     retry_response.raise_for_status()
 
                 self.root.after(0, lambda: self.append_status_line(f"Inserted {selected}"))
+                self.root.after(0, lambda: self.stop_reading_overlay(clear_only=True))
                 self.root.after(0, lambda: self.load_cards_from_folder(self.cards_dir))
                 self.root.after(0, lambda: self.show_current_card_if_name(selected))
 
             except Exception as exc:
+                self.root.after(0, lambda: self.stop_reading_overlay(clear_only=True))
                 self.root.after(0, lambda: self.append_status_line(f"Insert failed: {exc}"))
                 self.root.after(0, lambda: messagebox.showerror("Insert failed", str(exc)))
             finally:
